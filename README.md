@@ -101,7 +101,11 @@ card's stable ID, so a re-import never disturbs what you own.
 - Equipment, weapons and heroes use **1 / 2 / 3 / 5** and count as complete at 1,
   since you can only run one per deck and the question is how many decks you can
   build at once.
-- Stored as `1, 2, 3, 5, 8`. A card you own none of has no row at all.
+- **skip** marks a card you've decided you don't want. It drops out of every
+  total — the denominator shrinks rather than the card sitting in the missing
+  pile forever — and the "Not tracking" filter lists what you've set aside.
+- Stored as `-1, 1, 2, 3, 5, 8`, where `-1` is skip. A card you own none of and
+  haven't skipped has no row at all.
 - Edits save locally first and sync in the background, so the app keeps working
   on bad venue wifi and catches up when it reconnects.
 - **Rarity** is folded up from printings to the card, and a card is ranked by its

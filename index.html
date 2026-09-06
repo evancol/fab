@@ -117,6 +117,11 @@
   .qty button:first-child{border-left:none}
   .qty button[aria-pressed=true]{background:var(--acc);color:var(--acc-ink);font-weight:600}
   .var.full .qty{border-color:var(--acc-dk)}
+  .qty button.skip{width:34px;font-size:11px;color:var(--dimmer)}
+  .qty button.skip[aria-pressed=true]{background:#3A4049;color:var(--ink);font-weight:500}
+  .var.off .meta,.var.off .pitch{opacity:.4}
+  .var.off::before{opacity:.25}
+  @media (max-width:400px){ .qty button{width:33px} .qty button.skip{width:30px;font-size:10px} }
 
   .peek{background:var(--surf2);padding:10px 12px;border-top:1px solid #262B32}
   .peek img{width:100%;max-width:290px;border-radius:9px;display:block;margin:0 auto;background:var(--surf)}
@@ -238,7 +243,8 @@ let code = null, filt = 'all', shown = 0, flushT = null;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-const target = c => c.k === 'Deck' ? 3 : 1;
+const target  = c => c.k === 'Deck' ? 3 : 1;
+const skipped = c => owned[c.i] === -1;   // deliberately not tracking this one
 
 /* ======================================================================
    supabase rpc
@@ -332,6 +338,7 @@ function showPicker(){
     if ((owned[c.i] || 0) >= target(c)) stat[k][0]++;
   };
   for (const c of CARDS) {
+    if (skipped(c)) continue;
     add('*', c);
     if (c.c.length) c.c.forEach(k => add(k, c));
     else add(NO_CLASS, c);
@@ -382,7 +389,8 @@ function buildFilters(){
   $('fClass').insertAdjacentHTML('beforeend', cls.map(x=>`<option>${x}</option>`).join(''));
   $('fTalent').insertAdjacentHTML('beforeend', tal.map(x=>`<option>${x}</option>`).join(''));
   $('fSet').insertAdjacentHTML('beforeend', set.map(x=>`<option>${x}</option>`).join(''));
-  $('chips').innerHTML = [['all','Everything'],['need','Still needed'],['some','Part way'],['done','Complete']]
+  $('chips').innerHTML = [['all','Everything'],['need','Still needed'],['some','Part way'],
+                          ['done','Complete'],['skip','Not tracking']]
     .map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${k==='all'}">${l}</button>`).join('');
 }
 
@@ -429,8 +437,10 @@ function matches(c, f){
       && (!f.set  || c.s.includes(f.set));
 }
 function statusOf(vis){
-  const n = vis.filter(c => (owned[c.i]||0) >= target(c)).length;
-  return n === 0 ? 'need' : n === vis.length ? 'done' : 'some';
+  const live = vis.filter(c => !skipped(c));
+  if (!live.length) return 'skip';
+  const n = live.filter(c => (owned[c.i]||0) >= target(c)).length;
+  return n === 0 ? 'need' : n === live.length ? 'done' : 'some';
 }
 
 let visible = [];
@@ -449,7 +459,10 @@ function render(reset = true){
   for (const g of GROUPS) {
     const vis = g.v.filter(c => matches(c, f));
     if (!vis.length) continue;
-    for (const c of vis) { total++; if ((owned[c.i]||0) >= target(c)) done++; }
+    for (const c of vis) {
+      if (skipped(c)) continue;
+      total++; if ((owned[c.i]||0) >= target(c)) done++;
+    }
     if (f.q && !g.n.toLowerCase().includes(f.q)) continue;
     const st = statusOf(vis);
     if (filt !== 'all' && filt !== st) continue;
@@ -509,13 +522,14 @@ function groupHTML(g){
       if (c.co !== '') bits.push(`<b>${esc(c.co)}</b> cost`);
       if (c.po !== '') bits.push(`<b>${esc(c.po)}</b> pow`);
       if (c.df !== '') bits.push(`<b>${esc(c.df)}</b> def`);
-      return `<div class="var ${n>=target(c)?'full':''}" style="--pc:${PC[c.p]||'var(--dimmer)'}">
+      return `<div class="var ${n>=target(c)?'full':''} ${n===-1?'off':''}" style="--pc:${PC[c.p]||'var(--dimmer)'}">
         <span class="pitch">${c.p || '·'}</span>
         <span class="meta">
           <span class="stat">${bits.join(' · ')}</span>
           <span class="sets">${c.s.map(esc).join(' ')}</span>
         </span>
-        <span class="qty">${qtys(c).map(([v,l]) =>
+        <span class="qty"><button class="skip" data-id="${c.i}" data-v="-1"
+            aria-pressed="${n===-1}" aria-label="Not tracking this card">skip</button>${qtys(c).map(([v,l]) =>
           `<button data-id="${c.i}" data-v="${v}" aria-pressed="${n===v}">${l}</button>`).join('')}</span>
       </div>`;
     }).join('') +
@@ -535,6 +549,7 @@ $('list').addEventListener('click', e => {
     row.querySelectorAll('.qty button').forEach(x => x.setAttribute('aria-pressed', +x.dataset.v === now));
     const card = CARDS.find(c => c.i === id);
     row.classList.toggle('full', now >= target(card));
+    row.classList.toggle('off', now === -1);
     const g = visible.find(x => x.vis.some(c => c.i === id));
     if (g) { g.st = statusOf(g.vis); row.closest('.grp').classList.toggle('done', g.st === 'done'); }
     updateTally();
@@ -554,7 +569,7 @@ $('list').addEventListener('click', e => {
 function updateTally(){
   const f = F(); let done = 0, total = 0;
   for (const g of GROUPS) for (const c of g.v) {
-    if (!matches(c, f)) continue;
+    if (!matches(c, f) || skipped(c)) continue;
     total++; if ((owned[c.i]||0) >= target(c)) done++;
   }
   $('tDone').textContent = done.toLocaleString();
@@ -579,7 +594,7 @@ $('switchBtn').onclick = () => {
 };
 $('expBtn').onclick = () => {
   const rows = [['Name','Pitch','Owned','Class','Rarity','Type','Sets','Card ID']];
-  for (const c of CARDS) if (owned[c.i])
+  for (const c of CARDS) if (owned[c.i] > 0)
     rows.push([c.n, c.p, owned[c.i] === 1 ? '<3' : owned[c.i], c.c.join('/'),
                (c.r || []).map(x => RAR[x] || x).join('/'), c.tt, c.s.join('|'), c.id]);
   const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');

@@ -23,10 +23,13 @@ create table if not exists public.collection (
 -- "<3" because 3 is the playset. Equipment, weapons and heroes use 1/2/3/5,
 -- since you can only run one per deck and what matters is how many decks you
 -- can build. No row at all means none owned.
+--
+-- -1 means "not tracking": a card you've decided you don't want, which drops
+-- out of every total instead of sitting in the missing pile forever.
 create table if not exists public.collection_card (
   code       text     not null references public.collection(code) on delete cascade,
   card_id    text     not null,          -- fab-cube "Unique ID": one row per name + pitch
-  qty        smallint not null check (qty in (1, 2, 3, 5, 8)),
+  qty        smallint not null check (qty in (-1, 1, 2, 3, 5, 8)),
   updated_at timestamptz not null default now(),
   primary key (code, card_id)
 );
@@ -37,7 +40,7 @@ create index if not exists collection_card_card_idx on public.collection_card (c
 -- without touching your data. Safe to run more than once.
 alter table public.collection_card drop constraint if exists collection_card_qty_check;
 alter table public.collection_card add  constraint collection_card_qty_check
-  check (qty in (1, 2, 3, 5, 8));
+  check (qty in (-1, 1, 2, 3, 5, 8));
 
 -- Deliberately no foreign key to public.card. Card data refreshes on its own
 -- schedule from the fab-cube repo, and a new set shouldn't be able to break
