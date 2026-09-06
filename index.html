@@ -108,7 +108,8 @@
 
   .var{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 15px;border-top:1px solid #262B32;position:relative}
   .var::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--pc,var(--dimmer))}
-  .meta{flex:1;min-width:0;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--dim)}
+  .meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;font-size:12.5px;color:var(--dim)}
+  .sets{font-size:10.5px;color:var(--dimmer);letter-spacing:.06em;line-height:1.35;word-spacing:.1em}
   .pitch{font-family:var(--disp);font-size:15px;font-weight:500;color:var(--pc,var(--dimmer));width:11px;flex:none}
   .stat b{color:#B9BEC6;font-weight:500}
   .qty{display:flex;flex:none;border:1px solid var(--line);border-radius:7px;overflow:hidden}
@@ -217,7 +218,9 @@
    state
    ====================================================================== */
 const LS = { code:'fab.code', queue:'fab.queue', cache:'fab.cache' };
-const QTYS = [[1,'<3'],[3,'3'],[5,'5'],[8,'8']];
+const QTY_DECK = [[1,'<3'],[3,'3'],[5,'5'],[8,'8']];   // a playset is 3
+const QTY_GEAR = [[1,'1'],[2,'2'],[3,'3'],[5,'5']];    // one per deck, so count copies
+const qtys = c => c.k === 'Deck' ? QTY_DECK : QTY_GEAR;
 const PC  = {'1':'var(--p1)','2':'var(--p2)','3':'var(--p3)'};
 const RAR = { B:'Basic', T:'Token', C:'Common', R:'Rare', S:'Super',
               M:'Majestic', P:'Promo', L:'Legendary', V:'Marvel', F:'Fabled' };
@@ -508,8 +511,11 @@ function groupHTML(g){
       if (c.df !== '') bits.push(`<b>${esc(c.df)}</b> def`);
       return `<div class="var ${n>=target(c)?'full':''}" style="--pc:${PC[c.p]||'var(--dimmer)'}">
         <span class="pitch">${c.p || '·'}</span>
-        <span class="meta">${bits.join(' · ')}</span>
-        <span class="qty">${QTYS.map(([v,l]) =>
+        <span class="meta">
+          <span class="stat">${bits.join(' · ')}</span>
+          <span class="sets">${c.s.map(esc).join(' ')}</span>
+        </span>
+        <span class="qty">${qtys(c).map(([v,l]) =>
           `<button data-id="${c.i}" data-v="${v}" aria-pressed="${n===v}">${l}</button>`).join('')}</span>
       </div>`;
     }).join('') +
@@ -542,7 +548,7 @@ $('list').addEventListener('click', e => {
     const src = c.g ? (c.g.includes('/') ? c.g : PREFIX + c.g) : '';
     const rl = (c.r || []).map(x => RAR[x] || x).join(', ');
     slot.innerHTML = `<div class="peek">${src ? `<img loading="lazy" src="${src}" alt="${esc(c.n)}">` : ''}
-      <p>${c.s.map(esc).join(' · ')}${c.id ? ' · ' + esc(c.id) : ''}${rl ? '<br>Printed as ' + esc(rl) : ''}</p></div>`;
+      <p>${esc(c.id)}${rl ? ' · printed as ' + esc(rl) : ''}</p></div>`;
   }
 });
 function updateTally(){

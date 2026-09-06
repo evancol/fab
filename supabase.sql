@@ -19,18 +19,25 @@ create table if not exists public.collection (
   last_seen_at timestamptz not null default now()
 );
 
--- Quantity buckets, not exact counts:
---   1 = fewer than 3    3 = a playset    5 = five    8 = eight
--- No row at all means none owned.
+-- Quantity buckets, not exact counts. Deck cards use 1/3/5/8, where 1 shows as
+-- "<3" because 3 is the playset. Equipment, weapons and heroes use 1/2/3/5,
+-- since you can only run one per deck and what matters is how many decks you
+-- can build. No row at all means none owned.
 create table if not exists public.collection_card (
   code       text     not null references public.collection(code) on delete cascade,
   card_id    text     not null,          -- fab-cube "Unique ID": one row per name + pitch
-  qty        smallint not null check (qty in (1, 3, 5, 8)),
+  qty        smallint not null check (qty in (1, 2, 3, 5, 8)),
   updated_at timestamptz not null default now(),
   primary key (code, card_id)
 );
 
 create index if not exists collection_card_card_idx on public.collection_card (card_id);
+
+-- Already ran an earlier version of this file? This widens the constraint
+-- without touching your data. Safe to run more than once.
+alter table public.collection_card drop constraint if exists collection_card_qty_check;
+alter table public.collection_card add  constraint collection_card_qty_check
+  check (qty in (1, 2, 3, 5, 8));
 
 -- Deliberately no foreign key to public.card. Card data refreshes on its own
 -- schedule from the fab-cube repo, and a new set shouldn't be able to break

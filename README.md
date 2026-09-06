@@ -88,7 +88,7 @@ card's stable ID, so a re-import never disturbs what you own.
 | `config.js` | Your two Supabase values. The only file you edit. |
 | `cards.json` | Card data, ~1 MB, ~200 KB over the wire. Cached after first load. |
 | `cards.csv` | Same data for the optional Supabase reference table. |
-| `supabase.sql` | Schema, RLS, and the four functions the app calls. |
+| `supabase.sql` | Schema, RLS, and the four functions the app calls. Re-runnable. |
 | `tools/build_cards.py` | Regenerates both card files. |
 | `manifest.json`, `icon.png` | Makes "Add to Home Screen" behave like an app. |
 
@@ -97,10 +97,11 @@ card's stable ID, so a re-import never disturbs what you own.
 - One row per **card**, meaning name plus pitch. Red, yellow and blue
   *Aftershock* are three separate cards you buy separately, so they're tracked
   separately. Printings are collapsed — an entry is never per-set.
-- Equipment, weapons and heroes count as complete at any quantity, since you
-  can only run one. Deck cards need 3.
-- Quantities are stored as `1, 3, 5, 8`, where `1` displays as `<3`. A card you
-  own none of has no row at all.
+- Deck cards use **&lt;3 / 3 / 5 / 8** and count as complete at 3.
+- Equipment, weapons and heroes use **1 / 2 / 3 / 5** and count as complete at 1,
+  since you can only run one per deck and the question is how many decks you can
+  build at once.
+- Stored as `1, 2, 3, 5, 8`. A card you own none of has no row at all.
 - Edits save locally first and sync in the background, so the app keeps working
   on bad venue wifi and catches up when it reconnects.
 - **Rarity** is folded up from printings to the card, and a card is ranked by its
