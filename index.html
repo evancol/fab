@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15181C">
+<title>Flesh and Blood collection</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15181C; --surf:#1D2126; --surf2:#232830; --line:#30363F;
+    --ink:#E9E5DC; --dim:#8B929C; --dimmer:#5E6570;
+    --acc:#D3A047; --acc-dk:#8A6620; --acc-ink:#1A1408;
+    --p1:#C4503F; --p2:#D9A93F; --p3:#4E82BE;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --disp:'Oswald','Inter',-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45}
+  body{padding-bottom:env(safe-area-inset-bottom)}
+  button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
+  input,select{font:inherit}
+  a{color:var(--acc)}
+
+  /* ---------- gate ---------- */
+  #gate{max-width:420px;margin:0 auto;padding:52px 22px}
+  #gate h1{font-family:var(--disp);font-weight:600;font-size:32px;letter-spacing:.03em;line-height:1.1;margin:0 0 6px}
+  #gate h1 em{font-style:normal;color:var(--acc);display:block}
+  #gate p{color:var(--dim);font-size:14px;margin:0 0 26px}
+  .field{display:block;margin-bottom:12px}
+  .field span{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+  .field input{width:100%;background:var(--surf);border:1px solid var(--line);border-radius:9px;
+    padding:12px;color:var(--ink);outline:none}
+  .field input:focus{border-color:var(--acc)}
+  .btn{width:100%;background:var(--acc);color:var(--acc-ink);font-weight:600;border-radius:9px;padding:12px;margin-top:4px}
+  .btn.ghost{background:none;border:1px solid var(--line);color:var(--ink);font-weight:500}
+  .rule{display:flex;align-items:center;gap:12px;color:var(--dimmer);font-size:12px;margin:26px 0}
+  .rule::before,.rule::after{content:"";flex:1;height:1px;background:var(--line)}
+  .err{color:#E4796A;font-size:13px;margin-top:10px;min-height:18px}
+  code.code{font-family:var(--disp);letter-spacing:.16em;font-size:19px;color:var(--acc);
+    display:block;background:var(--surf);border:1px dashed var(--acc-dk);border-radius:9px;
+    padding:14px;text-align:center;word-break:break-all;margin:6px 0 14px}
+
+  /* ---------- class picker ---------- */
+  #picker{max-width:640px;margin:0 auto;padding:22px 14px 40px}
+  #picker[hidden]{display:none}
+  .pkhd{display:flex;align-items:flex-end;gap:10px;margin-bottom:16px}
+  .pkhd h1{font-family:var(--disp);font-weight:600;font-size:27px;letter-spacing:.03em;margin:0;line-height:1;flex:1}
+  .pkhd h1 em{font-style:normal;color:var(--acc);display:block;font-size:17px;letter-spacing:.02em;margin-bottom:3px}
+  .pkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .tile{border:1px solid var(--line);background:var(--surf);border-radius:10px;padding:11px 12px 10px;text-align:left;
+    display:block;border-left:3px solid var(--tc,var(--dimmer))}
+  .tile.wide{grid-column:1/-1}
+  .tile b{display:block;font-family:var(--disp);font-weight:500;font-size:17px;letter-spacing:.03em}
+  .tile span{display:block;font-size:12px;color:var(--dim);margin:2px 0 7px}
+  .tile .tb{height:3px;background:var(--surf2);border-radius:2px;overflow:hidden}
+  .tile .tb i{display:block;height:100%;background:var(--tc,var(--dimmer))}
+  .backbtn{flex:none;width:30px;height:30px;margin-right:-2px;color:var(--dim);font-size:24px;line-height:1}
+
+  /* ---------- rarity ---------- */
+  .rar{flex:none;font-size:10.5px;border-radius:4px;padding:1px 5px;border:1px solid;letter-spacing:.02em}
+  .r-C{color:#9AA1AB;border-color:#454C56}
+  .r-R{color:#8FB4D6;border-color:#3C5570}
+  .r-S{color:#6FC0B4;border-color:#2F5F59}
+  .r-M{color:#D3A047;border-color:#7A5C1F}
+  .r-L{color:#D98A4E;border-color:#7A4A22}
+  .r-F{color:#B98AD6;border-color:#5C3F73}
+  .r-V{color:#D97BA8;border-color:#733F58}
+  .r-P{color:#8FBE7A;border-color:#456037}
+  .r-T,.r-B{color:var(--dimmer);border-color:#3A4049}
+
+  #app[hidden]{display:none}
+  header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+  .hd{padding:12px 14px 9px;display:flex;align-items:flex-end;gap:10px}
+  .hd h1{font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:.04em;margin:0;line-height:1;flex:1}
+  .hd h1 em{font-style:normal;color:var(--acc)}
+  .tally{text-align:right;font-family:var(--disp);line-height:1}
+  .tally b{font-size:22px;font-weight:600}
+  .tally i{font-style:normal;color:var(--dim);font-size:12px;display:block;font-family:var(--sans);margin-top:3px}
+  .bar{height:4px;background:var(--surf2)}
+  .bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--acc-dk),var(--acc));transition:width .3s ease}
+
+  .tools{padding:9px 14px 0;display:flex;gap:8px}
+  .srch{flex:1;display:flex;align-items:center;gap:8px;background:var(--surf);border:1px solid var(--line);border-radius:8px;padding:0 10px}
+  .srch input{flex:1;background:none;border:none;outline:none;color:var(--ink);padding:9px 0;min-width:0}
+  .srch svg{flex:none;opacity:.45}
+  .srch button{color:var(--dim);font-size:19px;line-height:1;padding:4px}
+  .icobtn{flex:none;width:38px;border:1px solid var(--line);background:var(--surf);border-radius:8px;color:var(--dim)}
+  .selects{display:flex;gap:6px;overflow-x:auto;padding:9px 14px 0;scrollbar-width:none}
+  .selects::-webkit-scrollbar{display:none}
+  select{flex:none;background:var(--surf);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 8px;outline:none;max-width:46vw}
+  select.on{border-color:var(--acc);color:var(--acc)}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding:9px 14px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none;border:1px solid var(--line);background:var(--surf);border-radius:999px;padding:6px 13px;font-size:13px;color:var(--dim)}
+  .chip[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
+
+  main{padding:6px 10px 60px}
+  .grp{border:1px solid var(--line);border-radius:10px;background:var(--surf);margin-bottom:8px;overflow:hidden}
+  .grp.done{border-color:var(--acc-dk)}
+  .ghd{display:flex;align-items:baseline;gap:8px;padding:9px 12px 7px;width:100%;text-align:left}
+  .ghd h2{font-size:15px;font-weight:600;margin:0;flex:1;min-width:0}
+  .tt{font-size:11.5px;color:var(--dimmer);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46%}
+  .flag{font-size:10px;color:var(--acc);border:1px solid var(--acc-dk);border-radius:4px;padding:0 4px;flex:none}
+
+  .var{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 15px;border-top:1px solid #262B32;position:relative}
+  .var::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--pc,var(--dimmer))}
+  .meta{flex:1;min-width:0;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--dim)}
+  .pitch{font-family:var(--disp);font-size:15px;font-weight:500;color:var(--pc,var(--dimmer));width:11px;flex:none}
+  .stat b{color:#B9BEC6;font-weight:500}
+  .qty{display:flex;flex:none;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .qty button{width:38px;height:32px;font-size:12.5px;color:var(--dimmer);border-left:1px solid var(--line);font-family:var(--disp);letter-spacing:.03em}
+  .qty button:first-child{border-left:none}
+  .qty button[aria-pressed=true]{background:var(--acc);color:var(--acc-ink);font-weight:600}
+  .var.full .qty{border-color:var(--acc-dk)}
+
+  .peek{background:var(--surf2);padding:10px 12px;border-top:1px solid #262B32}
+  .peek img{width:100%;max-width:290px;border-radius:9px;display:block;margin:0 auto;background:var(--surf)}
+  .peek p{margin:8px 0 0;font-size:12px;color:var(--dim);text-align:center}
+  .empty{text-align:center;color:var(--dim);padding:46px 20px;font-size:14px}
+  .more{text-align:center;color:var(--dimmer);padding:16px;font-size:13px}
+
+  .sheet{position:fixed;inset:0;z-index:40;background:rgba(8,10,12,.72);display:grid;place-items:end center}
+  .sheet[hidden]{display:none}
+  .sheet>div{background:var(--surf);border-top-left-radius:16px;border-top-right-radius:16px;
+    width:100%;max-width:520px;padding:18px 18px calc(22px + env(safe-area-inset-bottom))}
+  .sheet h3{font-family:var(--disp);font-weight:600;font-size:19px;margin:0 0 12px;letter-spacing:.03em}
+  .sheet .btn{margin-top:8px}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(90px);
+    background:var(--acc);color:var(--acc-ink);font-weight:600;font-size:13px;padding:9px 16px;
+    border-radius:999px;transition:transform .25s ease;z-index:60}
+  .toast.on{transform:translateX(-50%) translateY(0)}
+  .sync{position:fixed;right:12px;bottom:14px;font-size:11px;color:var(--dimmer);z-index:30}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<section id="gate">
+  <h1>Flesh and Blood<em>collection</em></h1>
+  <p>Track how many of each card you own. Every card, every class, counted once per card rather than once per printing.</p>
+
+  <div id="gateJoin">
+    <label class="field"><span>Collection code</span>
+      <input id="codeIn" placeholder="ABCD2345EFGH6789" autocapitalize="characters" autocomplete="off" spellcheck="false"></label>
+    <button class="btn" id="joinBtn">Open collection</button>
+    <div class="err" id="gateErr"></div>
+    <div class="rule">or</div>
+    <label class="field"><span>Name for a new collection (optional)</span>
+      <input id="labelIn" placeholder="Evan" autocomplete="off"></label>
+    <button class="btn ghost" id="newBtn">Create a new collection</button>
+  </div>
+
+  <div id="gateNew" hidden>
+    <p>Save this code. It's the only way back into the collection, and anyone you give it to can edit it.</p>
+    <code class="code" id="newCode"></code>
+    <button class="btn" id="copyCode">Copy code</button>
+    <button class="btn ghost" id="goBtn">Start tracking</button>
+  </div>
+</section>
+
+<section id="picker" hidden>
+  <div class="pkhd">
+    <h1><em>Flesh and Blood</em>Pick a class</h1>
+    <button class="icobtn" id="pkMenu" aria-label="Menu">&#9881;</button>
+  </div>
+  <div class="pkgrid" id="pkGrid"></div>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <div class="hd">
+      <button class="backbtn" id="backBtn" aria-label="Back to classes">&lsaquo;</button>
+      <h1 id="title">All cards</h1>
+      <div class="tally"><b id="tDone">0</b><i id="tSub">of 0</i></div>
+    </div>
+    <div class="bar"><div id="tBar"></div></div>
+    <div class="tools">
+      <label class="srch">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input id="q" placeholder="Search card names" autocomplete="off">
+        <button id="qx" hidden aria-label="Clear search">&times;</button>
+      </label>
+      <button class="icobtn" id="menuBtn" aria-label="Menu">&#9881;</button>
+    </div>
+    <div class="selects">
+      <select id="fSort"><option value="name">By name</option><option value="rarity">Rarest first</option><option value="common">Commonest first</option></select>
+      <select id="fClass"><option value="">Every class</option></select>
+      <select id="fKind"><option value="">Every type</option><option>Deck</option><option>Equipment</option><option>Weapon</option><option>Hero</option><option>Token</option></select>
+      <select id="fTalent"><option value="">Every talent</option></select>
+      <select id="fSet"><option value="">Every set</option></select>
+    </div>
+    <div class="chips" id="chips"></div>
+  </header>
+  <main id="list"></main>
+  <div class="sync" id="sync"></div>
+</div>
+
+<div class="sheet" id="sheet" hidden><div>
+  <h3>Collection</h3>
+  <p style="margin:0 0 4px;color:var(--dim);font-size:13px">Share this code to let someone else use the same collection.</p>
+  <code class="code" id="myCode"></code>
+  <button class="btn ghost" id="copyCode2">Copy code</button>
+  <button class="btn ghost" id="expBtn">Export what I own as CSV</button>
+  <button class="btn ghost" id="switchBtn">Use a different code</button>
+  <button class="btn" id="closeSheet">Close</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+/* ======================================================================
+   state
+   ====================================================================== */
+const LS = { code:'fab.code', queue:'fab.queue', cache:'fab.cache' };
+const QTYS = [[1,'<3'],[3,'3'],[5,'5'],[8,'8']];
+const PC  = {'1':'var(--p1)','2':'var(--p2)','3':'var(--p3)'};
+const RAR = { B:'Basic', T:'Token', C:'Common', R:'Rare', S:'Super',
+              M:'Majestic', P:'Promo', L:'Legendary', V:'Marvel', F:'Fabled' };
+const CLASS_ACC = {
+  Guardian:'#D3A047', Warrior:'#C8563F', Ninja:'#7E7FC4', Brute:'#C97A32',
+  Runeblade:'#A86AC0', Wizard:'#4E82BE', Ranger:'#6FA05C', Mechanologist:'#C08A54',
+  Illusionist:'#7FB8C9', Assassin:'#A44450', Necromancer:'#8E6BA8', Bard:'#5FA79A',
+  Pirate:'#C0A05A', Merchant:'#7FA45C', Generic:'#9AA1AB'
+};
+
+let CARDS = [], GROUPS = [], PREFIX = '';
+let owned = {};              // card_id -> qty
+let queue = {};              // card_id -> qty, waiting to sync
+let code = null, filt = 'all', shown = 0, flushT = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const target = c => c.k === 'Deck' ? 3 : 1;
+
+/* ======================================================================
+   supabase rpc
+   ====================================================================== */
+async function rpc(fn, body){
+  const r = await fetch(`${CONFIG.url}/rest/v1/rpc/${fn}`, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', apikey:CONFIG.anonKey,
+              Authorization:`Bearer ${CONFIG.anonKey}` },
+    body: JSON.stringify(body || {})
+  });
+  const text = await r.text();
+  if (!r.ok) {
+    let msg = text;
+    try { msg = JSON.parse(text).message || text; } catch(e){}
+    throw new Error(msg);
+  }
+  return text ? JSON.parse(text) : null;
+}
+
+/* ======================================================================
+   boot
+   ====================================================================== */
+(async function boot(){
+  code = localStorage.getItem(LS.code);
+  try { queue = JSON.parse(localStorage.getItem(LS.queue) || '{}'); } catch(e){ queue = {}; }
+  if (code) { $('gate').hidden = true; start(); }
+})();
+
+$('joinBtn').onclick = async () => {
+  const v = $('codeIn').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if (v.length < 8) { $('gateErr').textContent = 'That code looks too short.'; return; }
+  $('gateErr').textContent = 'Checking…';
+  try {
+    await rpc('get_collection', { p_code:v });
+    localStorage.setItem(LS.code, v); code = v;
+    $('gate').hidden = true; start();
+  } catch(e){
+    $('gateErr').textContent = /Unknown collection/.test(e.message)
+      ? 'No collection with that code.' : e.message;
+  }
+};
+$('newBtn').onclick = async () => {
+  $('gateErr').textContent = 'Creating…';
+  try {
+    const c = await rpc('new_collection', { p_label: $('labelIn').value.trim() || null });
+    localStorage.setItem(LS.code, c); code = c;
+    $('newCode').textContent = c;
+    $('gateJoin').hidden = true; $('gateNew').hidden = false; $('gateErr').textContent = '';
+  } catch(e){ $('gateErr').textContent = e.message; }
+};
+$('goBtn').onclick = () => { $('gate').hidden = true; start(); };
+$('copyCode').onclick  = () => copy(code);
+$('copyCode2').onclick = () => copy(code);
+function copy(t){ navigator.clipboard.writeText(t).then(()=>toast('Code copied'), ()=>toast('Copy failed')); }
+
+async function start(){
+  $('myCode').textContent = code;
+
+  // cards first, from the repo — the app is usable before Supabase answers
+  const res = await fetch('cards.json');
+  const data = await res.json();
+  PREFIX = data.prefix; CARDS = data.cards;
+  buildGroups(); buildFilters();
+
+  try { owned = JSON.parse(localStorage.getItem(LS.cache) || '{}'); } catch(e){ owned = {}; }
+  Object.assign(owned, queue);
+  showPicker();
+
+  try {
+    const rows = await rpc('get_collection', { p_code:code });
+    owned = {};
+    for (const r of rows) owned[r.card_id] = r.qty;
+    Object.assign(owned, queue);           // unsynced local edits still win
+    localStorage.setItem(LS.cache, JSON.stringify(owned));
+    if (!$('picker').hidden) showPicker(); else render();
+    flush();
+  } catch(e){ setSync('offline — changes saved here'); }
+}
+
+/* ======================================================================
+   class picker
+   ====================================================================== */
+const NO_CLASS = '\u2014';
+function showPicker(){
+  $('app').hidden = true; $('picker').hidden = false;
+  document.documentElement.style.setProperty('--acc', '#D3A047');
+
+  const stat = {}, add = (k, c) => {
+    (stat[k] ||= [0, 0])[1]++;
+    if ((owned[c.i] || 0) >= target(c)) stat[k][0]++;
+  };
+  for (const c of CARDS) {
+    add('*', c);
+    if (c.c.length) c.c.forEach(k => add(k, c));
+    else add(NO_CLASS, c);
+  }
+
+  const names = Object.keys(stat).filter(k => k !== '*' && k !== NO_CLASS && k !== 'Generic').sort();
+  const order = ['*', 'Generic', ...names, NO_CLASS].filter(k => stat[k]);
+
+  $('pkGrid').innerHTML = order.map(k => {
+    const [done, total] = stat[k];
+    const label = k === '*' ? 'Every card' : k === NO_CLASS ? 'No class' : k;
+    const col = k === '*' ? '#D3A047' : (CLASS_ACC[k] || '#9AA1AB');
+    return `<button class="tile ${k === '*' ? 'wide' : ''}" data-class="${k}" style="--tc:${col}">
+      <b>${label}</b>
+      <span>${done.toLocaleString()} of ${total.toLocaleString()} complete</span>
+      <span class="tb"><i style="width:${total ? done / total * 100 : 0}%"></i></span>
+    </button>`;
+  }).join('');
+}
+function openClass(k){
+  $('fClass').value = (k === '*' || k === NO_CLASS) ? '' : k;
+  noClassOnly = (k === NO_CLASS);
+  $('picker').hidden = true; $('app').hidden = false;
+  filt = 'all';
+  document.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', x.dataset.f === 'all'));
+  render(); scrollTo(0, 0);
+}
+let noClassOnly = false;
+$('pkGrid').addEventListener('click', e => {
+  const t = e.target.closest('.tile'); if (t) openClass(t.dataset.class);
+});
+$('backBtn').onclick = showPicker;
+$('pkMenu').onclick  = () => $('sheet').hidden = false;
+
+function buildGroups(){
+  const m = new Map();
+  for (const c of CARDS) {
+    if (!m.has(c.n)) { const g = { n:c.n, v:[] }; m.set(c.n, g); GROUPS.push(g); }
+    m.get(c.n).v.push(c);
+  }
+  for (const g of GROUPS) g.v.sort((a,b)=>(a.p||'9').localeCompare(b.p||'9'));
+}
+function buildFilters(){
+  const cls = [...new Set(CARDS.flatMap(c=>c.c))].sort();
+  const tal = [...new Set(CARDS.flatMap(c=>c.t))].sort();
+  const set = [...new Set(CARDS.flatMap(c=>c.s))].sort();
+  $('fClass').addEventListener('change', () => { if ($('fClass').value) noClassOnly = false; });
+  $('fClass').insertAdjacentHTML('beforeend', cls.map(x=>`<option>${x}</option>`).join(''));
+  $('fTalent').insertAdjacentHTML('beforeend', tal.map(x=>`<option>${x}</option>`).join(''));
+  $('fSet').insertAdjacentHTML('beforeend', set.map(x=>`<option>${x}</option>`).join(''));
+  $('chips').innerHTML = [['all','Everything'],['need','Still needed'],['some','Part way'],['done','Complete']]
+    .map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${k==='all'}">${l}</button>`).join('');
+}
+
+/* ======================================================================
+   writes
+   ====================================================================== */
+function setQty(id, qty){
+  if (qty) owned[id] = qty; else delete owned[id];
+  queue[id] = qty;
+  localStorage.setItem(LS.cache, JSON.stringify(owned));
+  localStorage.setItem(LS.queue, JSON.stringify(queue));
+  setSync(`${Object.keys(queue).length} to save`);
+  clearTimeout(flushT); flushT = setTimeout(flush, 900);
+}
+async function flush(){
+  const items = Object.entries(queue).map(([card_id, qty]) => ({ card_id, qty }));
+  if (!items.length) { setSync(''); return; }
+  try {
+    await rpc('set_many', { p_code:code, p_items:items });
+    for (const it of items) if (queue[it.card_id] === it.qty) delete queue[it.card_id];
+    localStorage.setItem(LS.queue, JSON.stringify(queue));
+    setSync(Object.keys(queue).length ? `${Object.keys(queue).length} to save` : '');
+  } catch(e){
+    setSync(`offline — ${items.length} waiting`);
+    clearTimeout(flushT); flushT = setTimeout(flush, 15000);
+  }
+}
+addEventListener('online', flush);
+function setSync(t){ $('sync').textContent = t; }
+
+/* ======================================================================
+   render
+   ====================================================================== */
+const F = () => ({
+  q: $('q').value.trim().toLowerCase(),
+  cls: $('fClass').value, kind: $('fKind').value,
+  tal: $('fTalent').value, set: $('fSet').value
+});
+function matches(c, f){
+  if (noClassOnly && c.c.length) return false;
+  return (!f.cls  || c.c.includes(f.cls))
+      && (!f.kind || c.k === f.kind)
+      && (!f.tal  || c.t.includes(f.tal))
+      && (!f.set  || c.s.includes(f.set));
+}
+function statusOf(vis){
+  const n = vis.filter(c => (owned[c.i]||0) >= target(c)).length;
+  return n === 0 ? 'need' : n === vis.length ? 'done' : 'some';
+}
+
+let visible = [];
+function render(reset = true){
+  const f = F();
+  for (const s of ['fClass','fKind','fTalent','fSet'])
+    $(s).classList.toggle('on', !!$(s).value);
+  $('fSort').classList.toggle('on', $('fSort').value !== 'name');
+
+  $('title').innerHTML = f.cls ? `<em>${esc(f.cls)}</em>`
+    : noClassOnly ? 'No class' : (f.tal ? esc(f.tal) : 'All cards');
+  document.documentElement.style.setProperty('--acc', CLASS_ACC[f.cls] || '#D3A047');
+
+  let done = 0, total = 0;
+  visible = [];
+  for (const g of GROUPS) {
+    const vis = g.v.filter(c => matches(c, f));
+    if (!vis.length) continue;
+    for (const c of vis) { total++; if ((owned[c.i]||0) >= target(c)) done++; }
+    if (f.q && !g.n.toLowerCase().includes(f.q)) continue;
+    const st = statusOf(vis);
+    if (filt !== 'all' && filt !== st) continue;
+    visible.push({ n:g.n, vis, st, rk: Math.min(...vis.map(c => c.rk)) });
+  }
+
+  const sort = $('fSort').value;
+  if (sort === 'rarity')      visible.sort((a,b) => b.rk - a.rk || a.n.localeCompare(b.n));
+  else if (sort === 'common') visible.sort((a,b) => a.rk - b.rk || a.n.localeCompare(b.n));
+  else                        visible.sort((a,b) => a.n.localeCompare(b.n));
+
+  $('tDone').textContent = done.toLocaleString();
+  $('tSub').textContent  = `of ${total.toLocaleString()}`;
+  $('tBar').style.width  = total ? (done/total*100) + '%' : '0';
+  $('qx').hidden = !f.q;
+
+  if (reset) { shown = 0; $('list').innerHTML = ''; }
+  if (!visible.length) { $('list').innerHTML = `<p class="empty">Nothing matches. Loosen a filter to see more.</p>`; return; }
+  paint();
+}
+function paint(){
+  const slice = visible.slice(shown, shown + 120);
+  shown += slice.length;
+  const html = slice.map(groupHTML).join('') +
+    (shown < visible.length ? `<p class="more" id="sentinel">Loading more…</p>` : '');
+  const old = $('sentinel'); if (old) old.remove();
+  $('list').insertAdjacentHTML('beforeend', html);
+  const s = $('sentinel');
+  if (s) watch(s);
+}
+let io = null;
+function watch(el){
+  if (!('IntersectionObserver' in window)) {           // no observer: fall back to a tap
+    el.textContent = 'Show more';
+    el.onclick = () => paint();
+    return;
+  }
+  io = io || new IntersectionObserver(es => {
+    if (es.some(e => e.isIntersecting)) { io.disconnect(); paint(); }
+  }, { rootMargin:'400px' });
+  io.observe(el);
+}
+
+function groupHTML(g){
+  const first = g.vis[0];
+  const r = first.r && first.r[0];
+  return `<section class="grp ${g.st==='done'?'done':''}">
+    <button class="ghd" data-peek="${first.i}">
+      <h2>${esc(g.n)}</h2>
+      ${r ? `<span class="rar r-${r}">${RAR[r]}</span>` : ''}
+      ${first.cc ? '' : '<span class="flag">not CC</span>'}
+      <span class="tt">${esc(first.tt)}</span>
+    </button>` +
+    g.vis.map(c => {
+      const n = owned[c.i] || 0;
+      const bits = [];
+      if (c.co !== '') bits.push(`<b>${esc(c.co)}</b> cost`);
+      if (c.po !== '') bits.push(`<b>${esc(c.po)}</b> pow`);
+      if (c.df !== '') bits.push(`<b>${esc(c.df)}</b> def`);
+      return `<div class="var ${n>=target(c)?'full':''}" style="--pc:${PC[c.p]||'var(--dimmer)'}">
+        <span class="pitch">${c.p || '·'}</span>
+        <span class="meta">${bits.join(' · ')}</span>
+        <span class="qty">${QTYS.map(([v,l]) =>
+          `<button data-id="${c.i}" data-v="${v}" aria-pressed="${n===v}">${l}</button>`).join('')}</span>
+      </div>`;
+    }).join('') +
+    `<div id="pk_${first.i}"></div></section>`;
+}
+
+/* ======================================================================
+   events
+   ====================================================================== */
+$('list').addEventListener('click', e => {
+  const b = e.target.closest('.qty button');
+  if (b) {
+    const id = b.dataset.id, v = +b.dataset.v;
+    const now = (owned[id]||0) === v ? 0 : v;
+    setQty(id, now);
+    const row = b.closest('.var');
+    row.querySelectorAll('.qty button').forEach(x => x.setAttribute('aria-pressed', +x.dataset.v === now));
+    const card = CARDS.find(c => c.i === id);
+    row.classList.toggle('full', now >= target(card));
+    const g = visible.find(x => x.vis.some(c => c.i === id));
+    if (g) { g.st = statusOf(g.vis); row.closest('.grp').classList.toggle('done', g.st === 'done'); }
+    updateTally();
+    return;
+  }
+  const hd = e.target.closest('.ghd');
+  if (hd) {
+    const c = CARDS.find(x => x.i === hd.dataset.peek);
+    const slot = $('pk_' + c.i); if (!slot) return;
+    if (slot.innerHTML) { slot.innerHTML = ''; return; }
+    const src = c.g ? (c.g.includes('/') ? c.g : PREFIX + c.g) : '';
+    const rl = (c.r || []).map(x => RAR[x] || x).join(', ');
+    slot.innerHTML = `<div class="peek">${src ? `<img loading="lazy" src="${src}" alt="${esc(c.n)}">` : ''}
+      <p>${c.s.map(esc).join(' · ')}${c.id ? ' · ' + esc(c.id) : ''}${rl ? '<br>Printed as ' + esc(rl) : ''}</p></div>`;
+  }
+});
+function updateTally(){
+  const f = F(); let done = 0, total = 0;
+  for (const g of GROUPS) for (const c of g.v) {
+    if (!matches(c, f)) continue;
+    total++; if ((owned[c.i]||0) >= target(c)) done++;
+  }
+  $('tDone').textContent = done.toLocaleString();
+  $('tSub').textContent  = `of ${total.toLocaleString()}`;
+  $('tBar').style.width  = total ? (done/total*100) + '%' : '0';
+}
+$('chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  filt = b.dataset.f;
+  document.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', x === b));
+  render(); scrollTo(0,0);
+});
+['q','fSort','fClass','fKind','fTalent','fSet'].forEach(id => $(id).addEventListener('input', () => render()));
+$('qx').onclick = () => { $('q').value = ''; render(); };
+$('menuBtn').onclick   = () => $('sheet').hidden = false;
+$('closeSheet').onclick = () => $('sheet').hidden = true;
+$('sheet').addEventListener('click', e => { if (e.target === $('sheet')) $('sheet').hidden = true; });
+$('switchBtn').onclick = () => {
+  if (!confirm('Open a different collection on this device?')) return;
+  localStorage.removeItem(LS.code); localStorage.removeItem(LS.cache);
+  location.reload();
+};
+$('expBtn').onclick = () => {
+  const rows = [['Name','Pitch','Owned','Class','Rarity','Type','Sets','Card ID']];
+  for (const c of CARDS) if (owned[c.i])
+    rows.push([c.n, c.p, owned[c.i] === 1 ? '<3' : owned[c.i], c.c.join('/'),
+               (c.r || []).map(x => RAR[x] || x).join('/'), c.tt, c.s.join('|'), c.id]);
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  a.download = 'fab-collection.csv'; a.click();
+};
+function toast(m){
+  const t = $('toast'); t.textContent = m; t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), 1900);
+}
+</script>
+</body>
+</html>

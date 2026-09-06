@@ -1,0 +1,9 @@
+{
+  "name": "Flesh and Blood collection",
+  "short_name": "FaB cards",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#15181C",
+  "theme_color": "#15181C",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }]
+}
