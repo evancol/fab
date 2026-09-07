@@ -16,7 +16,7 @@ Static front end on GitHub Pages, Postgres on Supabase, no server in between.
 2. Open **SQL Editor**, paste all of `supabase.sql`, run it.
 3. Go to **Project settings → Data API** and copy the project URL, then
    **Project settings → API keys** and copy the `anon` / publishable key.
-4. Put both in `config.js`.
+4. `cp config.example.js config.js`, put both values in it, and commit it.
 
 The anon key is public by design and it's fine to commit it. It doesn't grant
 access to anything on its own: the `collection` and `collection_card` tables have
@@ -61,7 +61,15 @@ person, or hand out the same code to share one.
 Codes are 80 bits of randomness, so they can't be guessed, but treat them like a
 door key rather than a username.
 
-## 4. Keeping card data current
+## 4. About `config.js`
+
+`config.js` is **not** in the release zip, so unpacking a new version over your
+repo can't overwrite it. If it gets clobbered some other way, the app falls back
+to the last settings that worked on your device and says so under ⚙, rather than
+silently failing to reach the server. A copy with placeholders still in it, or
+none at all, shows a setup panel where you can paste the URL and key directly.
+
+## 5. Keeping card data current
 
 When a set releases:
 
@@ -85,7 +93,7 @@ card's stable ID, so a re-import never disturbs what you own.
 | | |
 |---|---|
 | `index.html` | The whole app. No build step, no framework. |
-| `config.js` | Your two Supabase values. The only file you edit. |
+| `config.example.js` | Template for `config.js`, the only file you edit. |
 | `cards.json` | Card data, ~1 MB, ~200 KB over the wire. Cached after first load. |
 | `cards.csv` | Same data for the optional Supabase reference table. |
 | `supabase.sql` | Schema, RLS, and the four functions the app calls. Re-runnable. |

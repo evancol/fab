@@ -163,6 +163,18 @@
     <button class="btn ghost" id="newBtn">Create a new collection</button>
   </div>
 
+  <div id="gateSetup" hidden>
+    <p>This copy doesn't have working Supabase settings yet. Paste them in once
+      and they'll be remembered on this device even if <code>config.js</code>
+      gets overwritten later.</p>
+    <label class="field"><span>Project URL</span>
+      <input id="cfgUrl" placeholder="https://abcdefgh.supabase.co" autocomplete="off" spellcheck="false"></label>
+    <label class="field"><span>Anon / publishable key</span>
+      <input id="cfgKey" placeholder="eyJhbGci…" autocomplete="off" spellcheck="false"></label>
+    <button class="btn" id="cfgSave">Save settings</button>
+    <div class="err" id="cfgErr"></div>
+  </div>
+
   <div id="gateNew" hidden>
     <p>Save this code. It's the only way back into the collection, and anyone you give it to can edit it.</p>
     <code class="code" id="newCode"></code>
@@ -213,6 +225,7 @@
   <p style="margin:0 0 4px;color:var(--dim);font-size:13px">Share this code to let someone else use the same collection.</p>
   <code class="code" id="myCode"></code>
   <button class="btn ghost" id="copyCode2">Copy code</button>
+  <p id="cfgNote" style="margin:0 0 10px;color:var(--dimmer);font-size:11.5px"></p>
   <p id="diag" hidden></p>
   <button class="btn ghost" id="retryBtn">Retry saving now</button>
   <button class="btn ghost" id="expBtn">Export what I own as CSV</button>
@@ -229,7 +242,30 @@
 /* ======================================================================
    state
    ====================================================================== */
-const LS = { code:'fab.code', queue:'fab.queue', cache:'fab.cache' };
+const LS = { code:'fab.code', queue:'fab.queue', cache:'fab.cache', cfg:'fab.cfg' };
+
+// config.js is easy to clobber when redeploying, so the last set of values that
+// actually worked is kept on the device and used whenever the file is missing
+// or still has placeholders in it.
+const PLACEHOLDER = /YOUR-|example\.com/i;
+const usable = c => !!(c && c.url && c.anonKey && !PLACEHOLDER.test(c.url + c.anonKey));
+let CFG = null, cfgSource = '';
+(function resolveConfig(){
+  const fromFile = (typeof CONFIG !== 'undefined') ? CONFIG : null;
+  if (usable(fromFile)) {
+    CFG = fromFile; cfgSource = 'config.js';
+    localStorage.setItem(LS.cfg, JSON.stringify({ url:CFG.url, anonKey:CFG.anonKey }));
+    return;
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS.cfg) || 'null');
+    if (usable(saved)) {
+      CFG = saved;
+      cfgSource = fromFile ? 'saved on this device — config.js has placeholders in it'
+                           : 'saved on this device — config.js is missing';
+    }
+  } catch(e){}
+})();
 const QTY_DECK = [[1,'<3'],[3,'3'],[5,'5'],[8,'8']];   // a playset is 3
 const QTY_GEAR = [[1,'1'],[2,'2'],[3,'3'],[5,'5']];    // one per deck, so count copies
 const qtys = c => c.k === 'Deck' ? QTY_DECK : QTY_GEAR;
@@ -257,10 +293,11 @@ const skipped = c => owned[c.i] === -1;   // deliberately not tracking this one
    supabase rpc
    ====================================================================== */
 async function rpc(fn, body){
-  const r = await fetch(`${CONFIG.url}/rest/v1/rpc/${fn}`, {
+  if (!CFG) throw new Error('No Supabase settings — open the app settings and add them.');
+  const r = await fetch(`${CFG.url}/rest/v1/rpc/${fn}`, {
     method:'POST',
-    headers:{ 'Content-Type':'application/json', apikey:CONFIG.anonKey,
-              Authorization:`Bearer ${CONFIG.anonKey}` },
+    headers:{ 'Content-Type':'application/json', apikey:CFG.anonKey,
+              Authorization:`Bearer ${CFG.anonKey}` },
     body: JSON.stringify(body || {})
   });
   const text = await r.text();
@@ -276,11 +313,19 @@ async function rpc(fn, body){
    boot
    ====================================================================== */
 (async function boot(){
+  if (!CFG) { $('gateJoin').hidden = true; $('gateSetup').hidden = false; return; }
   code = localStorage.getItem(LS.code);
   try { queue = JSON.parse(localStorage.getItem(LS.queue) || '{}'); } catch(e){ queue = {}; }
   if (code) { $('gate').hidden = true; start(); }
 })();
 
+$('cfgSave').onclick = () => {
+  const url = $('cfgUrl').value.trim().replace(/\/+$/, '');
+  const key = $('cfgKey').value.trim();
+  if (!usable({ url, anonKey:key })) { $('cfgErr').textContent = 'Both fields are needed.'; return; }
+  localStorage.setItem(LS.cfg, JSON.stringify({ url, anonKey:key }));
+  location.reload();
+};
 $('joinBtn').onclick = async () => {
   const v = $('codeIn').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
   if (v.length < 8) { $('gateErr').textContent = 'That code looks too short.'; return; }
@@ -620,6 +665,7 @@ $('chips').addEventListener('click', e => {
 ['q','fSort','fClass','fKind','fTalent','fSet'].forEach(id => $(id).addEventListener('input', () => render()));
 $('qx').onclick = () => { $('q').value = ''; render(); };
 function openSheet(){
+  $('cfgNote').textContent = cfgSource ? `Server settings: ${cfgSource}` : '';
   const d = $('diag'), bad = Object.keys(rejected).length;
   if (lastError) {
     d.hidden = false;
