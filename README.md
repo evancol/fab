@@ -107,7 +107,13 @@ card's stable ID, so a re-import never disturbs what you own.
 - Stored as `-1, 1, 2, 3, 5, 8`, where `-1` is skip. A card you own none of and
   haven't skipped has no row at all.
 - Edits save locally first and sync in the background, so the app keeps working
-  on bad venue wifi and catches up when it reconnects.
+  on bad venue wifi and catches up when it reconnects. Nothing is sent before
+  it's written to `localStorage`, so a failed sync never loses an edit.
+- If saves stall, open ⚙. A genuine network problem says "offline"; anything the
+  database refused shows the actual Postgres message. **Retry saving now** pushes
+  again, and **Download full backup** writes a JSON file of everything including
+  skips, which **Restore from backup** reads back. A rejected card no longer
+  blocks the rest of the queue — the batch falls back to one call per card.
 - **Rarity** is folded up from printings to the card, and a card is ranked by its
   *easiest* printing. *Enlightened Strike* has a Marvel version, but it's a
   Majestic for sorting purposes, because a Marvel printing doesn't make a card

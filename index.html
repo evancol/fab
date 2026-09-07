@@ -134,6 +134,9 @@
   .sheet>div{background:var(--surf);border-top-left-radius:16px;border-top-right-radius:16px;
     width:100%;max-width:520px;padding:18px 18px calc(22px + env(safe-area-inset-bottom))}
   .sheet h3{font-family:var(--disp);font-weight:600;font-size:19px;margin:0 0 12px;letter-spacing:.03em}
+  #diag{font-size:12px;color:#E4796A;background:#2A1E1E;border:1px solid #4A2E2E;border-radius:8px;
+    padding:9px 11px;margin:0 0 4px;line-height:1.5;word-break:break-word}
+  #diag b{display:block;color:var(--ink);font-weight:600;margin-bottom:3px}
   .sheet .btn{margin-top:8px}
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(90px);
     background:var(--acc);color:var(--acc-ink);font-weight:600;font-size:13px;padding:9px 16px;
@@ -210,7 +213,11 @@
   <p style="margin:0 0 4px;color:var(--dim);font-size:13px">Share this code to let someone else use the same collection.</p>
   <code class="code" id="myCode"></code>
   <button class="btn ghost" id="copyCode2">Copy code</button>
+  <p id="diag" hidden></p>
+  <button class="btn ghost" id="retryBtn">Retry saving now</button>
   <button class="btn ghost" id="expBtn">Export what I own as CSV</button>
+  <button class="btn ghost" id="bakBtn">Download full backup</button>
+  <button class="btn ghost" id="restBtn">Restore from backup</button>
   <button class="btn ghost" id="switchBtn">Use a different code</button>
   <button class="btn" id="closeSheet">Close</button>
 </div></div>
@@ -371,7 +378,7 @@ $('pkGrid').addEventListener('click', e => {
   const t = e.target.closest('.tile'); if (t) openClass(t.dataset.class);
 });
 $('backBtn').onclick = showPicker;
-$('pkMenu').onclick  = () => $('sheet').hidden = false;
+$('pkMenu').onclick  = () => openSheet();
 
 function buildGroups(){
   const m = new Map();
@@ -405,18 +412,46 @@ function setQty(id, qty){
   setSync(`${Object.keys(queue).length} to save`);
   clearTimeout(flushT); flushT = setTimeout(flush, 900);
 }
+let lastError = null, rejected = {};
+const isNetwork = m => /failed to fetch|networkerror|load failed|timed out|ERR_/i.test(m || '');
+const left = () => Object.keys(queue).length;
+
 async function flush(){
-  const items = Object.entries(queue).map(([card_id, qty]) => ({ card_id, qty }));
+  const items = Object.entries(queue).map(([card_id, qty]) => ({ card_id, qty:+qty }));
   if (!items.length) { setSync(''); return; }
+
   try {
     await rpc('set_many', { p_code:code, p_items:items });
-    for (const it of items) if (queue[it.card_id] === it.qty) delete queue[it.card_id];
+    for (const it of items) if (+queue[it.card_id] === it.qty) delete queue[it.card_id];
     localStorage.setItem(LS.queue, JSON.stringify(queue));
-    setSync(Object.keys(queue).length ? `${Object.keys(queue).length} to save` : '');
+    lastError = null; rejected = {};
+    setSync(left() ? `${left()} to save` : '');
+    return;
   } catch(e){
-    setSync(`offline — ${items.length} waiting`);
-    clearTimeout(flushT); flushT = setTimeout(flush, 15000);
+    lastError = e.message;
+    if (isNetwork(e.message)) {
+      setSync(`offline — ${items.length} waiting`);
+      clearTimeout(flushT); flushT = setTimeout(flush, 15000);
+      return;
+    }
   }
+
+  // Server rejected the batch. Retry card by card so one bad row can't hold
+  // the rest hostage, and remember exactly which ones failed.
+  rejected = {};
+  for (const it of items) {
+    try {
+      await rpc('set_qty', { p_code:code, p_card_id:it.card_id, p_qty:it.qty });
+      if (+queue[it.card_id] === it.qty) delete queue[it.card_id];
+    } catch(err){
+      if (isNetwork(err.message)) { lastError = err.message; break; }
+      rejected[it.card_id] = err.message; lastError = err.message;
+    }
+  }
+  localStorage.setItem(LS.queue, JSON.stringify(queue));
+  const bad = Object.keys(rejected).length;
+  setSync(bad ? `${bad} refused by database — tap \u2699` : (left() ? `${left()} to save` : ''));
+  if (left() && !bad) { clearTimeout(flushT); flushT = setTimeout(flush, 15000); }
 }
 addEventListener('online', flush);
 function setSync(t){ $('sync').textContent = t; }
@@ -584,10 +619,53 @@ $('chips').addEventListener('click', e => {
 });
 ['q','fSort','fClass','fKind','fTalent','fSet'].forEach(id => $(id).addEventListener('input', () => render()));
 $('qx').onclick = () => { $('q').value = ''; render(); };
-$('menuBtn').onclick   = () => $('sheet').hidden = false;
+function openSheet(){
+  const d = $('diag'), bad = Object.keys(rejected).length;
+  if (lastError) {
+    d.hidden = false;
+    d.innerHTML = bad
+      ? `<b>${bad} ${bad === 1 ? 'card was' : 'cards were'} refused by the database</b>
+         Nothing is lost — they're still saved on this device and will go up once
+         the cause is fixed. Latest message: ${esc(lastError)}`
+      : `<b>Last save failed</b>${esc(lastError)}`;
+  } else { d.hidden = true; d.textContent = ''; }
+  $('sheet').hidden = false;
+}
+$('menuBtn').onclick   = openSheet;
+$('retryBtn').onclick  = async () => {
+  setSync('retrying…'); await flush(); openSheet();
+  toast(left() ? `${left()} still waiting` : 'All saved');
+};
+$('bakBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify({ code, saved:new Date().toISOString(), owned }, null, 1)],
+                        { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `fab-backup-${new Date().toISOString().slice(0,10)}.json`; a.click();
+};
+$('restBtn').onclick = () => {
+  const txt = prompt('Paste the contents of a backup file.');
+  if (!txt) return;
+  let data;
+  try { data = JSON.parse(txt); } catch(e){ return toast('That is not a valid backup'); }
+  const rows = data && data.owned;
+  if (!rows || typeof rows !== 'object') return toast('No collection in that file');
+  let n = 0;
+  for (const [id, qty] of Object.entries(rows)) {
+    if (owned[id] === qty) continue;
+    owned[id] = qty; queue[id] = qty; n++;
+  }
+  localStorage.setItem(LS.cache, JSON.stringify(owned));
+  localStorage.setItem(LS.queue, JSON.stringify(queue));
+  $('sheet').hidden = true; render(); flush();
+  toast(n ? `Restored ${n} cards` : 'Backup matched what you already had');
+};
 $('closeSheet').onclick = () => $('sheet').hidden = true;
 $('sheet').addEventListener('click', e => { if (e.target === $('sheet')) $('sheet').hidden = true; });
 $('switchBtn').onclick = () => {
+  if (left() && !confirm(
+      `${left()} change(s) haven't reached the server yet and will be lost. ` +
+      `Download a backup first. Switch anyway?`)) return;
   if (!confirm('Open a different collection on this device?')) return;
   localStorage.removeItem(LS.code); localStorage.removeItem(LS.cache);
   location.reload();
