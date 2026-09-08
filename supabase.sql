@@ -114,8 +114,11 @@ begin
 end $$;
 
 -- Everything owned in one collection. Also confirms the code is real.
+-- The result gained an updated_at column, and create-or-replace can't widen a
+-- function's result, so the old signature has to be dropped first.
+drop function if exists public.get_collection(text);
 create or replace function public.get_collection(p_code text)
-returns table (card_id text, qty smallint)
+returns table (card_id text, qty smallint, updated_at timestamptz)
 language plpgsql security definer set search_path = public as $$
 begin
   if not exists (select 1 from collection c where c.code = p_code) then
@@ -123,7 +126,8 @@ begin
   end if;
   update collection c set last_seen_at = now() where c.code = p_code;
   return query
-    select cc.card_id, cc.qty from collection_card cc where cc.code = p_code;
+    select cc.card_id, cc.qty, cc.updated_at
+    from collection_card cc where cc.code = p_code;
 end $$;
 
 -- Set one card. Pass 0 to remove it.
@@ -198,3 +202,12 @@ grant execute on function public.set_many(text, jsonb)             to anon, auth
 --          on cc.card_id = c.card_id and cc.code = 'YOUR-CODE-HERE'
 --   where c.kind = 'Deck'
 --   group by 1 order by 1;
+--
+-- What changed most recently:
+--
+--   select c.name, c.pitch, cc.qty, cc.updated_at
+--   from collection_card cc
+--   join card c using (card_id)
+--   where cc.code = 'YOUR-CODE-HERE'
+--   order by cc.updated_at desc
+--   limit 25;

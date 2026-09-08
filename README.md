@@ -105,15 +105,23 @@ card's stable ID, so a re-import never disturbs what you own.
 - One row per **card**, meaning name plus pitch. Red, yellow and blue
   *Aftershock* are three separate cards you buy separately, so they're tracked
   separately. Printings are collapsed — an entry is never per-set.
-- Deck cards use **&lt;3 / 3 / 5 / 8** and count as complete at 3.
-- Equipment, weapons and heroes use **1 / 2 / 3 / 5** and count as complete at 1,
-  since you can only run one per deck and the question is how many decks you can
-  build at once.
+- Deck cards use **&lt;3 / 3 / 5 / 8** and count as complete at 3 — except a deck
+  card whose *easiest available printing* is Legendary, which drops to the
+  equipment scale below. Nobody is chasing a playset of a Legendary, and a card
+  that also has a cheaper printing (a Promo or Majestic alongside the
+  Legendary) isn't affected — only the ones that are Legendary-only.
+- Equipment, weapons, heroes, and Legendary-only deck cards use **1 / 2 / 3 / 5**
+  and count as complete at 1, since the question for those is how many decks
+  you can build at once, not how many copies run in one.
 - **skip** marks a card you've decided you don't want. It drops out of every
   total — the denominator shrinks rather than the card sitting in the missing
   pile forever — and the "Not tracking" filter lists what you've set aside.
 - Stored as `-1, 1, 2, 3, 5, 8`, where `-1` is skip. A card you own none of and
   haven't skipped has no row at all.
+- Every row carries `updated_at`. The app shows it next to the set codes as
+  "4 days ago", with the exact date and time on hover, and ⚙ shows the most
+  recent change across the whole collection. Clearing a card back to nothing
+  removes its row, so it loses its timestamp too.
 - Edits save locally first and sync in the background, so the app keeps working
   on bad venue wifi and catches up when it reconnects. Nothing is sent before
   it's written to `localStorage`, so a failed sync never loses an edit.
