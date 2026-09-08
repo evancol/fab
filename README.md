@@ -106,13 +106,14 @@ card's stable ID, so a re-import never disturbs what you own.
   *Aftershock* are three separate cards you buy separately, so they're tracked
   separately. Printings are collapsed — an entry is never per-set.
 - Deck cards use **&lt;3 / 3 / 5 / 8** and count as complete at 3 — except a deck
-  card whose *easiest available printing* is Legendary, which drops to the
-  equipment scale below. Nobody is chasing a playset of a Legendary, and a card
-  that also has a cheaper printing (a Promo or Majestic alongside the
-  Legendary) isn't affected — only the ones that are Legendary-only.
-- Equipment, weapons, heroes, and Legendary-only deck cards use **1 / 2 / 3 / 5**
-  and count as complete at 1, since the question for those is how many decks
-  you can build at once, not how many copies run in one.
+  card whose *easiest available printing* is Legendary or Fabled, which drops
+  to the equipment scale below. Nobody is chasing a playset at that rarity, and
+  a card that also has a cheaper printing (a Promo or Majestic alongside the
+  Legendary/Fabled one) isn't affected — only the ones that are Legendary- or
+  Fabled-only.
+- Equipment, weapons, heroes, and Legendary-/Fabled-only deck cards use
+  **1 / 2 / 3 / 5** and count as complete at 1, since the question for those is
+  how many decks you can build at once, not how many copies run in one.
 - **skip** marks a card you've decided you don't want. It drops out of every
   total — the denominator shrinks rather than the card sitting in the missing
   pile forever — and the "Not tracking" filter lists what you've set aside.

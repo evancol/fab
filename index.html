@@ -291,11 +291,13 @@ let code = null, filt = 'all', shown = 0, flushT = null;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-// Legendaries are rare and expensive enough that nobody is chasing a
-// playset — so a deck card whose easiest printing is Legendary follows the
-// same 1/2/3/5 scale and 1-copy target as equipment, not the usual playset.
-const legendary = c => c.r && c.r[0] === 'L';
-const gearScale = c => c.k !== 'Deck' || legendary(c);
+// Legendaries and Fabled cards are rare and expensive enough that nobody is
+// chasing a playset — so a deck card whose easiest printing is one of those
+// follows the same 1/2/3/5 scale and 1-copy target as equipment, not the usual
+// playset. A card that also has a cheaper printing elsewhere isn't affected —
+// only the ones that are Legendary- or Fabled-only.
+const scarce    = c => c.r && (c.r[0] === 'L' || c.r[0] === 'F');
+const gearScale = c => c.k !== 'Deck' || scarce(c);
 const target    = c => gearScale(c) ? 1 : 3;
 function ago(iso){
   if (!iso) return '';
