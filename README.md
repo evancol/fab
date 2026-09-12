@@ -119,6 +119,9 @@ card's stable ID, so a re-import never disturbs what you own.
 - Equipment, weapons, heroes, and Legendary-/Fabled-only deck cards use
   **1 / 2 / 3 / 5** and count as complete at 1, since the question for those is
   how many decks you can build at once, not how many copies run in one.
+- The exception: Mechanologist Evo pieces typed as an Action or Instant can be
+  slotted into the main deck rather than equipped, so those 38 cards use the
+  normal **&lt;3 / 3 / 5 / 8** playset scale despite being tagged Equipment.
 - **skip** marks a card you've decided you don't want. It drops out of every
   total — the denominator shrinks rather than the card sitting in the missing
   pile forever — and the "Not tracking" filter lists what you've set aside.
