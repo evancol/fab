@@ -61,10 +61,23 @@ person, or hand out the same code to share one.
 Codes are 80 bits of randomness, so they can't be guessed, but treat them like a
 door key rather than a username.
 
-**Still needed** shows a card if any one of its pitches is short of that card's
-target — a card with a full playset in red but nothing in blue still counts as
-needed, it isn't required to be untouched across every pitch. A card only drops
-off this list once every pitch is at target or you've skipped it.
+There are four ways to slice "what do I still need," and they can disagree on
+purpose — each shows a card if *any one* of its pitches matches, and none of
+them count a pitch you've skipped:
+
+- **Still needed** — short of that card's target (3 for a playset, 1 for
+  equipment or a Legendary/Fabled-only card).
+- **Not maxed** — short of the highest button for that card (8 for a playset
+  card, 5 for equipment) even if the target's already met. For someone chasing
+  full playsets *and* a few spares, this is the wider net.
+- **Under 3** — fewer than 3 copies, full stop, regardless of what kind of
+  card it is. Useful specifically for equipment, where the target is 1 but you
+  might still want a few extra for different builds.
+- **No answer** — never been touched, not even to record a 0. This is the only
+  one of the four that a confirmed 0 removes a card from; the other three still
+  count 0 as short.
+
+A card only leaves all four once every pitch is at its max (8 or 5) or skipped.
 
 ## 4. About `config.js`
 
@@ -125,8 +138,12 @@ card's stable ID, so a re-import never disturbs what you own.
 - **skip** marks a card you've decided you don't want. It drops out of every
   total — the denominator shrinks rather than the card sitting in the missing
   pile forever — and the "Not tracking" filter lists what you've set aside.
-- Stored as `-1, 1, 2, 3, 5, 8`, where `-1` is skip. A card you own none of and
-  haven't skipped has no row at all.
+- **0** confirms you checked and own none — deliberately different from a card
+  nobody has looked at yet. That distinction is what the "No answer" filter
+  runs on: only truly untouched cards show there, and hitting 0 removes a card
+  from it. Tap 0 a second time to clear it back to untouched.
+- Stored as `-1, 0, 1, 2, 3, 5, 8`, where `-1` is skip. A card with no answer
+  at all has no row in the database — not even a 0.
 - Every row carries `updated_at`. The app shows it next to the set codes as
   "4 days ago", with the exact date and time on hover, and ⚙ shows the most
   recent change across the whole collection. Clearing a card back to nothing

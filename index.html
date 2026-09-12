@@ -270,8 +270,8 @@ let CFG = null, cfgSource = '';
     }
   } catch(e){}
 })();
-const QTY_DECK = [[1,'<3'],[3,'3'],[5,'5'],[8,'8']];   // a playset is 3
-const QTY_GEAR = [[1,'1'],[2,'2'],[3,'3'],[5,'5']];    // one per deck, so count copies
+const QTY_DECK = [[0,'0'],[1,'<3'],[3,'3'],[5,'5'],[8,'8']];  // a playset is 3
+const QTY_GEAR = [[0,'0'],[1,'1'],[2,'2'],[3,'3'],[5,'5']];   // one per deck, so count copies
 const qtys = c => gearScale(c) ? QTY_GEAR : QTY_DECK;
 const PC  = {'1':'var(--p1)','2':'var(--p2)','3':'var(--p3)'};
 const RAR = { B:'Basic', T:'Token', C:'Common', R:'Rare', S:'Super',
@@ -320,6 +320,16 @@ const lastChange = () => {
   return best;
 };
 const skipped = c => owned[c.i] === -1;   // deliberately not tracking this one
+
+// The three extra "what do I still need" lenses, each independent of the
+// target/completion logic above:
+//   maxQty   — the highest button for this card (8 for a playset, 5 for gear)
+//   under3   — fewer than 3 copies recorded, full stop, regardless of card kind
+//   noAnswer — literally never touched — not even set to a confirmed 0
+const maxQty   = c => qtys(c)[qtys(c).length - 1][0];
+const notMaxed = c => !skipped(c) && (owned[c.i] ?? 0) < maxQty(c);
+const under3   = c => !skipped(c) && (owned[c.i] ?? 0) < 3;
+const noAnswer = c => !skipped(c) && owned[c.i] === undefined;
 
 /* ======================================================================
    supabase rpc
@@ -478,7 +488,8 @@ function buildFilters(){
   $('fClass').insertAdjacentHTML('beforeend', cls.map(x=>`<option>${x}</option>`).join(''));
   $('fTalent').insertAdjacentHTML('beforeend', tal.map(x=>`<option>${x}</option>`).join(''));
   $('fSet').insertAdjacentHTML('beforeend', set.map(x=>`<option>${x}</option>`).join(''));
-  $('chips').innerHTML = [['all','Everything'],['need','Still needed'],['some','Part way'],
+  $('chips').innerHTML = [['all','Everything'],['need','Still needed'],['max','Not maxed'],
+                          ['three','Under 3'],['blank','No answer'],['some','Part way'],
                           ['done','Complete'],['skip','Not tracking']]
     .map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${k==='all'}">${l}</button>`).join('');
 }
@@ -487,8 +498,12 @@ function buildFilters(){
    writes
    ====================================================================== */
 function setQty(id, qty){
-  if (qty) owned[id] = qty; else delete owned[id];
-  if (qty) times[id] = new Date().toISOString(); else delete times[id];
+  // qty is a real stored value (-1 skip, 0 confirmed-none, or 1/2/3/5/8) or
+  // null, meaning "clear this back to no answer at all". 0 is deliberately
+  // NOT treated as falsy here — that was the bug that made a confirmed zero
+  // indistinguishable from a card nobody had looked at yet.
+  if (qty === null) { delete owned[id]; delete times[id]; }
+  else { owned[id] = qty; times[id] = new Date().toISOString(); }
   queue[id] = qty;
   localStorage.setItem(LS.cache, JSON.stringify(owned));
   localStorage.setItem(LS.times, JSON.stringify(times));
@@ -501,12 +516,12 @@ const isNetwork = m => /failed to fetch|networkerror|load failed|timed out|ERR_/
 const left = () => Object.keys(queue).length;
 
 async function flush(){
-  const items = Object.entries(queue).map(([card_id, qty]) => ({ card_id, qty:+qty }));
+  const items = Object.entries(queue).map(([card_id, qty]) => ({ card_id, qty }));
   if (!items.length) { setSync(''); return; }
 
   try {
     await rpc('set_many', { p_code:code, p_items:items });
-    for (const it of items) if (+queue[it.card_id] === it.qty) delete queue[it.card_id];
+    for (const it of items) if (queue[it.card_id] === it.qty) delete queue[it.card_id];
     localStorage.setItem(LS.queue, JSON.stringify(queue));
     lastError = null; rejected = {};
     setSync(left() ? `${left()} to save` : '');
@@ -526,7 +541,7 @@ async function flush(){
   for (const it of items) {
     try {
       await rpc('set_qty', { p_code:code, p_card_id:it.card_id, p_qty:it.qty });
-      if (+queue[it.card_id] === it.qty) delete queue[it.card_id];
+      if (queue[it.card_id] === it.qty) delete queue[it.card_id];
     } catch(err){
       if (isNetwork(err.message)) { lastError = err.message; break; }
       rejected[it.card_id] = err.message; lastError = err.message;
@@ -586,9 +601,14 @@ function render(reset = true){
     const st = statusOf(vis);
     // "Still needed" means at least one live variant hasn't hit its target yet
     // — a card with 3 red owned but 0 blue still belongs here, not just cards
-    // untouched across every pitch.
-    const matchesFilt = filt === 'all' ? true
-      : filt === 'need' ? (st === 'need' || st === 'some')
+    // untouched across every pitch. The three finer lenses below (max / under
+    // 3 / no answer) work the same way: the group shows if any live variant
+    // matches, skipped variants never count toward any of them.
+    const matchesFilt = filt === 'all'   ? true
+      : filt === 'need'  ? (st === 'need' || st === 'some')
+      : filt === 'max'   ? vis.some(notMaxed)
+      : filt === 'three' ? vis.some(under3)
+      : filt === 'blank' ? vis.some(noAnswer)
       : filt === st;
     if (!matchesFilt) continue;
     visible.push({ n:g.n, vis, st, rk: Math.min(...vis.map(c => c.rk)) });
@@ -642,12 +662,13 @@ function groupHTML(g){
       <span class="tt">${esc(first.tt)}</span>
     </button>` +
     g.vis.map(c => {
-      const n = owned[c.i] || 0;
+      const raw = owned[c.i];             // undefined | -1 | 0 | 1 | 2 | 3 | 5 | 8
+      const n = raw ?? 0;                  // for target/completion arithmetic only
       const bits = [];
       if (c.co !== '') bits.push(`<b>${esc(c.co)}</b> cost`);
       if (c.po !== '') bits.push(`<b>${esc(c.po)}</b> pow`);
       if (c.df !== '') bits.push(`<b>${esc(c.df)}</b> def`);
-      return `<div class="var ${n>=target(c)?'full':''} ${n===-1?'off':''}" style="--pc:${PC[c.p]||'var(--dimmer)'}">
+      return `<div class="var ${n>=target(c)?'full':''} ${raw===-1?'off':''}" style="--pc:${PC[c.p]||'var(--dimmer)'}">
         <span class="pitch">${c.p || '·'}</span>
         <span class="meta">
           <span class="stat">${bits.join(' · ')}</span>
@@ -655,8 +676,8 @@ function groupHTML(g){
             times[c.i] ? `<em title="${esc(stamp(times[c.i]))}">${esc(ago(times[c.i]))}</em>` : ''}</span>
         </span>
         <span class="qty"><button class="skip" data-id="${c.i}" data-v="-1"
-            aria-pressed="${n===-1}" aria-label="Not tracking this card">skip</button>${qtys(c).map(([v,l]) =>
-          `<button data-id="${c.i}" data-v="${v}" aria-pressed="${n===v}">${l}</button>`).join('')}</span>
+            aria-pressed="${raw===-1}" aria-label="Not tracking this card">skip</button>${qtys(c).map(([v,l]) =>
+          `<button data-id="${c.i}" data-v="${v}" aria-pressed="${raw===v}">${l}</button>`).join('')}</span>
       </div>`;
     }).join('') +
     `<div id="pk_${first.i}"></div></section>`;
@@ -669,12 +690,12 @@ $('list').addEventListener('click', e => {
   const b = e.target.closest('.qty button');
   if (b) {
     const id = b.dataset.id, v = +b.dataset.v;
-    const now = (owned[id]||0) === v ? 0 : v;
+    const now = owned[id] === v ? null : v;
     setQty(id, now);
     const row = b.closest('.var');
-    row.querySelectorAll('.qty button').forEach(x => x.setAttribute('aria-pressed', +x.dataset.v === now));
+    row.querySelectorAll('.qty button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.v === now)));
     const card = CARDS.find(c => c.i === id);
-    row.classList.toggle('full', now >= target(card));
+    row.classList.toggle('full', (now ?? 0) >= target(card));
     row.classList.toggle('off', now === -1);
     const st = row.querySelector('.sets');
     if (st) {

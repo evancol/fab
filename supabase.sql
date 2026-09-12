@@ -19,17 +19,21 @@ create table if not exists public.collection (
   last_seen_at timestamptz not null default now()
 );
 
--- Quantity buckets, not exact counts. Deck cards use 1/3/5/8, where 1 shows as
--- "<3" because 3 is the playset. Equipment, weapons and heroes use 1/2/3/5,
--- since you can only run one per deck and what matters is how many decks you
--- can build. No row at all means none owned.
+-- Quantity buckets, not exact counts. Deck cards use 0/1/3/5/8, where 1 shows
+-- as "<3" because 3 is the playset. Equipment, weapons and heroes use
+-- 0/1/2/3/5, since you can only run one per deck and what matters is how many
+-- decks you can build. No row at all means the card has never been touched.
+--
+-- 0 is a real, deliberate answer: "I checked, I own none." That's different
+-- from no row at all, which means nobody has looked at this card yet — the
+-- app's "No answer" filter depends on being able to tell those apart.
 --
 -- -1 means "not tracking": a card you've decided you don't want, which drops
 -- out of every total instead of sitting in the missing pile forever.
 create table if not exists public.collection_card (
   code       text     not null references public.collection(code) on delete cascade,
   card_id    text     not null,          -- fab-cube "Unique ID": one row per name + pitch
-  qty        smallint not null check (qty in (-1, 1, 2, 3, 5, 8)),
+  qty        smallint not null check (qty in (-1, 0, 1, 2, 3, 5, 8)),
   updated_at timestamptz not null default now(),
   primary key (code, card_id)
 );
@@ -40,7 +44,7 @@ create index if not exists collection_card_card_idx on public.collection_card (c
 -- without touching your data. Safe to run more than once.
 alter table public.collection_card drop constraint if exists collection_card_qty_check;
 alter table public.collection_card add  constraint collection_card_qty_check
-  check (qty in (-1, 1, 2, 3, 5, 8));
+  check (qty in (-1, 0, 1, 2, 3, 5, 8));
 
 -- Deliberately no foreign key to public.card. Card data refreshes on its own
 -- schedule from the fab-cube repo, and a new set shouldn't be able to break
@@ -130,7 +134,8 @@ begin
     from collection_card cc where cc.code = p_code;
 end $$;
 
--- Set one card. Pass 0 to remove it.
+-- Set one card. Pass null to remove it — 0 is now a real, storable quantity
+-- ("checked, own none"), so it can no longer double as the delete signal.
 create or replace function public.set_qty(p_code text, p_card_id text, p_qty smallint)
 returns void
 language plpgsql security definer set search_path = public as $$
@@ -139,7 +144,7 @@ begin
     raise exception 'Unknown collection code' using errcode = 'no_data_found';
   end if;
 
-  if p_qty = 0 then
+  if p_qty is null then
     delete from collection_card where code = p_code and card_id = p_card_id;
   else
     insert into collection_card (code, card_id, qty)
@@ -150,7 +155,7 @@ begin
 end $$;
 
 -- Bulk version, for flushing an offline queue or importing a list.
--- p_items looks like: [{"card_id":"abc...","qty":3}, {"card_id":"def...","qty":0}]
+-- p_items looks like: [{"card_id":"abc...","qty":3}, {"card_id":"def...","qty":null}]
 create or replace function public.set_many(p_code text, p_items jsonb)
 returns integer
 language plpgsql security definer set search_path = public as $$
