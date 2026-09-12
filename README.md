@@ -61,6 +61,11 @@ person, or hand out the same code to share one.
 Codes are 80 bits of randomness, so they can't be guessed, but treat them like a
 door key rather than a username.
 
+**Still needed** shows a card if any one of its pitches is short of that card's
+target — a card with a full playset in red but nothing in blue still counts as
+needed, it isn't required to be untouched across every pitch. A card only drops
+off this list once every pitch is at target or you've skipped it.
+
 ## 4. About `config.js`
 
 `config.js` is **not** in the release zip, so unpacking a new version over your

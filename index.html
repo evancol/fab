@@ -580,7 +580,13 @@ function render(reset = true){
     }
     if (f.q && !g.n.toLowerCase().includes(f.q)) continue;
     const st = statusOf(vis);
-    if (filt !== 'all' && filt !== st) continue;
+    // "Still needed" means at least one live variant hasn't hit its target yet
+    // — a card with 3 red owned but 0 blue still belongs here, not just cards
+    // untouched across every pitch.
+    const matchesFilt = filt === 'all' ? true
+      : filt === 'need' ? (st === 'need' || st === 'some')
+      : filt === st;
+    if (!matchesFilt) continue;
     visible.push({ n:g.n, vis, st, rk: Math.min(...vis.map(c => c.rk)) });
   }
 
