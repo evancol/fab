@@ -79,7 +79,17 @@ them count a pitch you've skipped:
 
 A card only leaves all four once every pitch is at its max (8 or 5) or skipped.
 
-## 4. About `config.js`
+## 4. Search
+
+The search box matches more than the card name — it also checks type text,
+kind (Deck/Equipment/Weapon/Hero/Token), class, talent, every set the card was
+ever printed in, and every rarity it was ever printed at (not just the one
+shown, which is the cheapest). So inside the Mechanologist filter, typing
+"rare" surfaces every Rare-rarity Mechanologist card whether or not the word
+appears in its name, and typing a set code like "WTR" surfaces everything
+printed there.
+
+## 5. About `config.js`
 
 `config.js` is **not** in the release zip, so unpacking a new version over your
 repo can't overwrite it. If it gets clobbered some other way, the app falls back
@@ -87,7 +97,7 @@ to the last settings that worked on your device and says so under ⚙, rather th
 silently failing to reach the server. A copy with placeholders still in it, or
 none at all, shows a setup panel where you can paste the URL and key directly.
 
-## 5. Keeping card data current
+## 6. Keeping card data current
 
 When a set releases:
 

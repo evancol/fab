@@ -204,7 +204,7 @@
     <div class="tools">
       <label class="srch">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-        <input id="q" placeholder="Search card names" autocomplete="off">
+        <input id="q" placeholder="Search name, type, set, rarity…" autocomplete="off">
         <button id="qx" hidden aria-label="Clear search">&times;</button>
       </label>
       <button class="icobtn" id="menuBtn" aria-label="Menu">&#9881;</button>
@@ -473,6 +473,14 @@ $('backBtn').onclick = showPicker;
 $('pkMenu').onclick  = () => openSheet();
 
 function buildGroups(){
+  // One search blob per card so typing "rare" finds a Rare-rarity card, an
+  // "Equipment" type, a class/talent name, or a set code — not just the card
+  // name. Computed once here rather than per keystroke.
+  for (const c of CARDS) {
+    c.search = [c.n, c.tt, c.k, ...(c.c || []), ...(c.t || []),
+                ...(c.s || []), ...(c.r || []).map(x => RAR[x] || x)]
+      .join(' ').toLowerCase();
+  }
   const m = new Map();
   for (const c of CARDS) {
     if (!m.has(c.n)) { const g = { n:c.n, v:[] }; m.set(c.n, g); GROUPS.push(g); }
@@ -597,7 +605,11 @@ function render(reset = true){
       if (skipped(c)) continue;
       total++; if ((owned[c.i]||0) >= target(c)) done++;
     }
-    if (f.q && !g.n.toLowerCase().includes(f.q)) continue;
+    // The query matches against name, type text, kind, class/talent, set
+    // codes and rarity — across whatever variants the dropdowns left visible
+    // — not just the card's name, so "rare" inside Mechanologist finds a
+    // Rare-rarity card even if the word isn't in its name.
+    if (f.q && !vis.some(c => c.search.includes(f.q))) continue;
     const st = statusOf(vis);
     // "Still needed" means at least one live variant hasn't hit its target yet
     // — a card with 3 red owned but 0 blue still belongs here, not just cards
