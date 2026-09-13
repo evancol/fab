@@ -8,6 +8,9 @@ Quantities are buckets rather than exact counts: **&lt;3**, **3**, **5**, **8**,
 
 Static front end on GitHub Pages, Postgres on Supabase, no server in between.
 
+> Built with Claude (Anthropic's AI). I described what I wanted and reviewed
+> the result — I didn't write this code myself.
+
 ---
 
 ## 1. Supabase
