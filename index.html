@@ -228,6 +228,7 @@
   <code class="code" id="myCode"></code>
   <button class="btn ghost" id="copyCode2">Copy code</button>
   <p id="lastNote" style="margin:0 0 2px;color:var(--dim);font-size:12px"></p>
+  <p id="valNote" style="margin:0 0 2px;color:var(--dim);font-size:12px"></p>
   <p id="cfgNote" style="margin:0 0 10px;color:var(--dimmer);font-size:11.5px"></p>
   <p id="diag" hidden></p>
   <button class="btn ghost" id="retryBtn">Retry saving now</button>
@@ -288,6 +289,11 @@ let owned = {};              // card_id -> qty
 let times = {};              // card_id -> ISO string of the last change
 let queue = {};              // card_id -> qty, waiting to sync
 let code = null, filt = 'all', shown = 0, flushT = null;
+let PRICES = {};             // card_id -> cheapest current printing's market price (USD)
+let priceDate = null, pricesLoaded = false;
+// Value is qty owned x price of the cheapest printing. Quantities are buckets
+// (e.g. "<3" is stored as 1), so this is a floor, not an exact total.
+const ownedValue = c => (owned[c.i] > 0 && PRICES[c.i] != null) ? owned[c.i] * PRICES[c.i] : 0;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
@@ -422,6 +428,25 @@ async function start(){
     if (!$('picker').hidden) showPicker(); else render();
     flush();
   } catch(e){ setSync('offline — changes saved here'); }
+
+  loadPrices();
+}
+
+// Prices are public TCGPlayer market data, not tied to a collection code, so
+// this works even before/without get_collection succeeding. Failure here is
+// quiet — value is a bonus on top of the tracker, not something to block or
+// nag about if TCGCSV or the sync job is having a bad day.
+async function loadPrices(){
+  try {
+    const rows = await rpc('get_card_values', {});
+    PRICES = {}; priceDate = null;
+    for (const r of rows) {
+      PRICES[r.card_id] = r.value;
+      if (!priceDate || r.price_date > priceDate) priceDate = r.price_date;
+    }
+    pricesLoaded = true;
+    if (!$('picker').hidden) showPicker(); else render();
+  } catch(e){ /* leave PRICES empty — cards just render without a value */ }
 }
 
 /* ======================================================================
@@ -433,8 +458,9 @@ function showPicker(){
   document.documentElement.style.setProperty('--acc', '#D3A047');
 
   const stat = {}, add = (k, c) => {
-    (stat[k] ||= [0, 0])[1]++;
+    (stat[k] ||= [0, 0, 0])[1]++;
     if ((owned[c.i] || 0) >= target(c)) stat[k][0]++;
+    stat[k][2] += ownedValue(c);
   };
   for (const c of CARDS) {
     if (skipped(c)) continue;
@@ -447,12 +473,13 @@ function showPicker(){
   const order = ['*', 'Generic', ...names, NO_CLASS].filter(k => stat[k]);
 
   $('pkGrid').innerHTML = order.map(k => {
-    const [done, total] = stat[k];
+    const [done, total, value] = stat[k];
     const label = k === '*' ? 'Every card' : k === NO_CLASS ? 'No class' : k;
     const col = k === '*' ? '#D3A047' : (CLASS_ACC[k] || '#9AA1AB');
     return `<button class="tile ${k === '*' ? 'wide' : ''}" data-class="${k}" style="--tc:${col}">
       <b>${label}</b>
-      <span>${done.toLocaleString()} of ${total.toLocaleString()} complete</span>
+      <span>${done.toLocaleString()} of ${total.toLocaleString()} complete${
+        pricesLoaded ? ` · $${value.toLocaleString(undefined,{maximumFractionDigits:0})}` : ''}</span>
       <span class="tb"><i style="width:${total ? done / total * 100 : 0}%"></i></span>
     </button>`;
   }).join('');
@@ -680,6 +707,7 @@ function groupHTML(g){
       if (c.co !== '') bits.push(`<b>${esc(c.co)}</b> cost`);
       if (c.po !== '') bits.push(`<b>${esc(c.po)}</b> pow`);
       if (c.df !== '') bits.push(`<b>${esc(c.df)}</b> def`);
+      if (PRICES[c.i] != null) bits.push(`<b>$${PRICES[c.i].toFixed(2)}</b>`);
       return `<div class="var ${n>=target(c)?'full':''} ${raw===-1?'off':''}" style="--pc:${PC[c.p]||'var(--dimmer)'}">
         <span class="pitch">${c.p || '·'}</span>
         <span class="meta">
@@ -752,6 +780,12 @@ $('qx').onclick = () => { $('q').value = ''; render(); };
 function openSheet(){
   const lc = lastChange();
   $('lastNote').textContent = lc ? `Last change ${ago(lc)} — ${stamp(lc)}` : 'Nothing recorded yet';
+  if (pricesLoaded) {
+    const total = CARDS.reduce((sum, c) => sum + ownedValue(c), 0);
+    $('valNote').textContent = `Estimated value: $${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}` +
+      (priceDate ? ` (TCGPlayer market, ${priceDate})` : '') +
+      ` — cheapest printing x qty owned, so it's a floor, not exact.`;
+  } else { $('valNote').textContent = ''; }
   $('cfgNote').textContent = cfgSource ? `Server settings: ${cfgSource}` : '';
   const d = $('diag'), bad = Object.keys(rejected).length;
   if (lastError) {
