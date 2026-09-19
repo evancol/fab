@@ -289,11 +289,11 @@ let owned = {};              // card_id -> qty
 let times = {};              // card_id -> ISO string of the last change
 let queue = {};              // card_id -> qty, waiting to sync
 let code = null, filt = 'all', shown = 0, flushT = null;
-let PRICES = {};             // card_id -> cheapest current printing's market price (USD)
+let PRICES = {};             // card_id -> {v: value, t: tier, lo, mid, hi}
 let priceDate = null, pricesLoaded = false;
 // Value is qty owned x price of the cheapest printing. Quantities are buckets
 // (e.g. "<3" is stored as 1), so this is a floor, not an exact total.
-const ownedValue = c => (owned[c.i] > 0 && PRICES[c.i] != null) ? owned[c.i] * PRICES[c.i] : 0;
+const ownedValue = c => (owned[c.i] > 0 && PRICES[c.i]) ? owned[c.i] * PRICES[c.i].v : 0;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
@@ -441,7 +441,7 @@ async function loadPrices(){
     const rows = await rpc('get_card_values', {});
     PRICES = {}; priceDate = null;
     for (const r of rows) {
-      PRICES[r.card_id] = r.value;
+      PRICES[r.card_id] = { v: r.value, t: r.tier, lo: r.low_price, mid: r.mid_price, hi: r.high_price };
       if (!priceDate || r.price_date > priceDate) priceDate = r.price_date;
     }
     pricesLoaded = true;
@@ -707,7 +707,19 @@ function groupHTML(g){
       if (c.co !== '') bits.push(`<b>${esc(c.co)}</b> cost`);
       if (c.po !== '') bits.push(`<b>${esc(c.po)}</b> pow`);
       if (c.df !== '') bits.push(`<b>${esc(c.df)}</b> def`);
-      if (PRICES[c.i] != null) bits.push(`<b>$${PRICES[c.i].toFixed(2)}</b>`);
+      const pr = PRICES[c.i];
+      if (pr) {
+        // Market price is a real traded average; mid/low are TCGPlayer's
+        // listing bands used only when a card has too little sales volume
+        // for a market price to exist. Flagging that inline (rather than
+        // just showing a number) keeps a "mid" estimate from reading as a
+        // real trade price.
+        const tag = pr.t !== 'market' ? ` ${pr.t}` : '';
+        const range = [pr.lo != null && `Low $${pr.lo.toFixed(2)}`,
+                        pr.mid != null && `Mid $${pr.mid.toFixed(2)}`,
+                        pr.hi != null && `High $${pr.hi.toFixed(2)}`].filter(Boolean).join(' · ');
+        bits.push(`<b title="${esc(range)}">$${pr.v.toFixed(2)}${tag}</b>`);
+      }
       return `<div class="var ${n>=target(c)?'full':''} ${raw===-1?'off':''}" style="--pc:${PC[c.p]||'var(--dimmer)'}">
         <span class="pitch">${c.p || '·'}</span>
         <span class="meta">
@@ -783,8 +795,9 @@ function openSheet(){
   if (pricesLoaded) {
     const total = CARDS.reduce((sum, c) => sum + ownedValue(c), 0);
     $('valNote').textContent = `Estimated value: $${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}` +
-      (priceDate ? ` (TCGPlayer market, ${priceDate})` : '') +
-      ` — cheapest printing x qty owned, so it's a floor, not exact.`;
+      (priceDate ? ` (TCGPlayer, ${priceDate})` : '') +
+      ` — cheapest printing x qty owned. A few cards fall back to a mid/low` +
+      ` listing price when there's no real market price yet, marked inline.`;
   } else { $('valNote').textContent = ''; }
   $('cfgNote').textContent = cfgSource ? `Server settings: ${cfgSource}` : '';
   const d = $('diag'), bad = Object.keys(rejected).length;
