@@ -357,6 +357,36 @@ async function rpc(fn, body){
   return text ? JSON.parse(text) : null;
 }
 
+// Like rpc(), but for calls that can return more rows than Supabase's
+// project-wide "Max Rows" API setting allows in one response (default 1000 —
+// easy to hit once a collection or the price table grows past it). Pages
+// through with a Range header until a short page confirms there's no more,
+// rather than trusting a single response actually contains everything.
+async function rpcAll(fn, body){
+  const PAGE = 1000;
+  let from = 0, out = [];
+  while (true) {
+    if (!CFG) throw new Error('No Supabase settings — open the app settings and add them.');
+    const r = await fetch(`${CFG.url}/rest/v1/rpc/${fn}`, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', apikey:CFG.anonKey,
+                Authorization:`Bearer ${CFG.anonKey}`,
+                'Range-Unit':'items', Range:`${from}-${from + PAGE - 1}` },
+      body: JSON.stringify(body || {})
+    });
+    const text = await r.text();
+    if (!r.ok && r.status !== 206) {
+      let msg = text;
+      try { msg = JSON.parse(text).message || text; } catch(e){}
+      throw new Error(msg);
+    }
+    const page = text ? JSON.parse(text) : [];
+    out.push(...page);
+    if (page.length < PAGE) return out;   // short page — that was everything
+    from += page.length;
+  }
+}
+
 /* ======================================================================
    boot
    ====================================================================== */
@@ -416,7 +446,7 @@ async function start(){
   showPicker();
 
   try {
-    const rows = await rpc('get_collection', { p_code:code });
+    const rows = await rpcAll('get_collection', { p_code:code });
     owned = {}; times = {};
     for (const r of rows) {
       owned[r.card_id] = r.qty;
@@ -438,7 +468,7 @@ async function start(){
 // nag about if TCGCSV or the sync job is having a bad day.
 async function loadPrices(){
   try {
-    const rows = await rpc('get_card_values', {});
+    const rows = await rpcAll('get_card_values', {});
     PRICES = {}; priceDate = null;
     for (const r of rows) {
       PRICES[r.card_id] = { v: r.value, t: r.tier, lo: r.low_price, mid: r.mid_price, hi: r.high_price };
