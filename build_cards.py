@@ -15,7 +15,10 @@ import csv, io, json, os, sys
 import pandas as pd
 import requests
 
-BASE = "https://raw.githubusercontent.com/the-fab-cube/flesh-and-blood-cards/develop/csvs/english/"
+# Upstream branch to read from. Defaults to "develop"; override for a set that
+# hasn't been merged yet, e.g.:  FAB_BRANCH=usurp-the-shadow-throne python3 tools/build_cards.py
+BRANCH = os.environ.get("FAB_BRANCH", "develop")
+BASE = f"https://raw.githubusercontent.com/the-fab-cube/flesh-and-blood-cards/{BRANCH}/csvs/english/"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 IMG_PREFIX = "https://legendstory-production-s3-public.s3.amazonaws.com/media/cards/large/"
 
